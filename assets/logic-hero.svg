@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 170" fill="none">
+  <defs><pattern id="grid" width="15" height="15" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#9eb3a0"/></pattern></defs>
+  <path fill="url(#grid)" d="M0 0h280v170H0z" opacity=".6"/>
+  <g stroke="#b6c4b6" stroke-width=".8"><path d="M0 14h20M10 4v20m250-10h20M270 4v20M0 156h20m-10-10v20m250-10h20m-10-10v20M106 12h82m-82 2v-4m82 4v-4"/><path d="M4 85h272" stroke-dasharray="2 5"/></g>
+  <path d="M105 35h39a50 50 0 0 1 0 100h-39z" fill="#e6edce" stroke="#1b604b" stroke-width="1.5"/>
+  <path d="M37 58h68M37 112h68m90-27h48" stroke="#1b604b" stroke-width="2"/>
+  <path d="M43 58h30m137 27h22" stroke="#a2be56" stroke-width="4"/>
+  <g stroke="#1b604b" stroke-width="1.5"><circle cx="32" cy="58" r="5" fill="#f5f4ec"/><circle cx="32" cy="112" r="5" fill="#f5f4ec"/><circle cx="248" cy="85" r="8" fill="#dcef83"/></g>
+  <path d="m135 74 10 10-10 10m-10-10h20" stroke="#1b604b" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#527363" font-family="monospace" font-size="9"><text x="24" y="43">A</text><text x="24" y="139">B</text><text x="243" y="113">S</text><text x="119" y="157" font-size="7" letter-spacing="2">LOGIC / 01</text></g>
+</svg>

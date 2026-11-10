@@ -19,3 +19,6 @@ Fuentes y avisos de las dependencias:
 - QRCode.js: https://github.com/davidshimjs/qrcodejs
 
 Conserva esta carpeta y sus avisos cuando redistribuyas el sitio. No se han modificado los motores compilados de terceros.
+
+La identidad 3.1 también incluye Space Grotesk e IBM Plex Mono bajo SIL Open
+Font License 1.1. Sus archivos, procedencia y licencias están en `../assets/fonts/`.

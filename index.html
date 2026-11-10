@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1219">
+  <meta name="theme-color" content="#f5f4ec">
   <meta name="description" content="Explora compuertas, construye circuitos y comprueba sus salidas con simulación interactiva, modelos 3D y realidad aumentada.">
   <title>Logic Lab · Compuertas que puedes entender</title>
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="circuit.css">
+  <link rel="stylesheet" href="identity.css">
+  <link rel="preload" href="assets/fonts/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
   <script src="logic.js" defer></script>
   <script src="circuit.js" defer></script>
   <script src="vendor/qrcode.min.js" defer></script>
@@ -35,8 +37,8 @@
     <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
   </defs></svg>
   <aside class="sidebar">
-    <a href="index.html" class="brand" aria-label="Logic Lab, inicio"><span class="brand-symbol">L<span>↗</span></span><span>logic<span class="brand-light">lab</span><small>APRENDE. CONECTA. DESCUBRE.</small></span></a>
-    <div class="workspace-label">TU ESPACIO DE APRENDIZAJE</div>
+    <a href="index.html" class="brand" aria-label="Logic Lab, inicio"><img class="brand-symbol" src="assets/icon.svg" width="42" height="42" alt=""><span>logic<span class="brand-light">lab</span><small>PENSAR EN BINARIO.</small></span></a>
+    <div class="workspace-label">EXPLORA EL LABORATORIO</div>
     <nav class="main-nav" aria-label="Navegación principal">
       <button type="button" class="nav-item active" data-view="lab" aria-label="Laboratorio" aria-current="page"><svg class="icon"><use href="#i-grid"/></svg><span>Laboratorio</span><span class="nav-dot"></span></button>
       <button type="button" class="nav-item" data-view="circuit" aria-label="Constructor de circuitos" title="Constructor de circuitos"><svg class="icon"><use href="#i-cube"/></svg><span>Constructor de circuitos</span></button>
@@ -44,13 +46,13 @@
       <button type="button" class="nav-item" data-view="phone" aria-label="Usar en mi teléfono"><svg class="icon"><use href="#i-phone"/></svg><span>Usar en mi teléfono</span></button>
     </nav>
     <div class="sidebar-progress"><div class="eyebrow">PASO A PASO</div><div class="progress-heading">Tu exploración <span id="progress-label">0 / 26</span></div><progress id="exploration-progress" max="26" value="0" aria-label="Combinaciones exploradas"></progress><p>Prueba las combinaciones de cada compuerta y descubre sus reglas.</p><div id="gate-progress" class="gate-progress" aria-label="Compuertas exploradas"></div></div>
-    <div class="sidebar-bottom"><span class="group-avatar">L↗</span><div><strong>Logic Lab</strong><span>Explora la lógica</span></div><span class="version">v3.0</span></div>
+    <div class="sidebar-bottom"><img class="group-avatar" src="assets/icon.svg" width="34" height="34" alt=""><div><strong>Logic Lab</strong><span>Aprender haciendo.</span></div><span class="version">v3.1</span></div>
   </aside>
   <div class="app-shell">
     <header class="topbar"><div class="breadcrumb">Logic Lab <span>/</span> <strong id="breadcrumb-current">Laboratorio interactivo</strong></div><div class="topbar-actions"><span class="local-badge"><span></span> Aprende a tu ritmo</span><button type="button" class="button small subtle" data-view="phone"><svg class="icon"><use href="#i-phone"/></svg><span>Guía para móvil</span></button></div></header>
     <main id="main" tabindex="-1">
       <section id="view-lab" class="view" aria-labelledby="lab-title">
-        <div class="page-heading"><div><div class="eyebrow accent">EL LABORATORIO ESTÁ EN TUS MANOS</div><h1 id="lab-title">Pequeñas señales.<br class="mobile-break"> <span>Grandes ideas.</span></h1><p>Enciende una entrada. Observa la salida. Entiende la lógica.</p></div><span class="lesson-badge"><svg class="icon"><use href="#i-book"/></svg> 01 <span>/ Compuertas lógicas</span></span></div>
+        <div class="page-heading lab-heading"><div><div class="eyebrow accent"><span class="heading-signal" aria-hidden="true"></span> TU PRÓXIMA IDEA EMPIEZA CON UN BIT</div><h1 id="lab-title">La lógica se entiende.<br><span>Cuando la haces.</span></h1><p>Prueba una señal, sigue su recorrido y descubre el porqué.</p></div><div class="hero-art" aria-hidden="true"><img src="assets/logic-hero.svg" width="280" height="170" alt=""><span>DE LA IDEA A LA SEÑAL</span></div></div>
         <section class="gate-picker" aria-label="Seleccionar compuerta"><div class="section-kicker"><span>01</span> ELIGE UNA COMPUERTA <span class="helper">7 formas de pensar en binario</span></div><div id="gate-choices" class="gate-choices" role="group" aria-label="Compuertas lógicas"></div></section>
         <div class="lab-grid">
           <div class="experiment-column">
@@ -100,7 +102,7 @@
         <section class="panel publishing-guide"><div class="card-topline"><h2>¿Todavía está en tu computadora?</h2><span class="pill">Publicación</span></div><p>Publica la carpeta como sitio estático con HTTPS. Una opción es GitHub Pages:</p><ol><li>Crea un repositorio y sube los archivos del proyecto junto con las carpetas <code>assets</code> y <code>vendor</code>.</li><li>En <strong>Settings → Pages</strong>, selecciona <strong>Deploy from a branch → main → / (root)</strong> y guarda.</li><li>Abre la dirección que GitHub muestra en <strong>Visit site</strong>. Regresa a esta guía para copiar el enlace o escanear su QR.</li></ol><a href="https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site" target="_blank" rel="noopener" class="text-link">Guía oficial de GitHub Pages ↗</a></section>
         <div class="faq-grid"><details class="panel"><summary>No se enciende la cámara</summary><p>Comprueba que la dirección empiece por https:// y que el navegador tenga permiso para la cámara. Cierra otras apps que la estén usando. Abre el enlace directamente en Chrome o Safari, fuera del navegador interno de una red social.</p></details><details class="panel"><summary>No aparece la compuerta</summary><p>Mantén todo el marcador dentro de la imagen. Evita reflejos, mejora la luz y mueve el teléfono poco a poco. Prueba con el marcador de unos 10 a 15 cm. Si aparece “Buscando marcador”, la cámara ya está funcionando.</p></details><details class="panel"><summary>¿Necesito otro dispositivo?</summary><p>Para RA necesitas el teléfono y una superficie con el marcador: una hoja impresa o la pantalla de otra computadora. Con un solo teléfono puedes usar el Simulador y girar el Modelo 3D sin marcador.</p></details><details class="panel"><summary>¿Es realidad virtual o aumentada?</summary><p>La realidad aumentada superpone el circuito a la imagen de tu cámara. El Modelo 3D permite girarlo en pantalla. Esta versión no incluye una experiencia inmersiva para gafas de realidad virtual.</p></details></div>
       </section>
-      <footer class="app-footer"><span>Hecho para aprender, un bit a la vez.</span><span>LOGIC LAB <span class="footer-dot">·</span> EXPLORA LA LÓGICA</span></footer>
+      <footer class="app-footer"><span>Un espacio para pensar. Un circuito para comprobar.</span><span>LOGIC LAB <span class="footer-dot">/</span> APRENDER HACIENDO.</span></footer>
     </main>
   </div>
   <noscript><div class="noscript">Activa JavaScript en el navegador para interactuar con las compuertas.</div></noscript>
