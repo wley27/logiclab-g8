@@ -6,13 +6,20 @@
   const $ = selector => document.querySelector(selector);
   const root = $('#view-circuit');
   const storeKey = 'logic-lab-circuit-v1';
+  const classStoreKey = 'logic-lab-classroom-last-v1';
   const color = bit => bit === null ? '#e5bd81' : bit ? '#72edb4' : '#718395';
   let circuit = C.example(), undo = [], redo = [], pending = null, mode = 'simulator', frame = null, timer = null;
   let classSession = null, receiveQR = true, classCameraTimer = null;
+  let savedClass = null, expanded = false, expandFocus = null, expandInert = [];
+  const viewport = $('#circuit-viewport');
   const origin = location.protocol === 'file:' ? '*' : location.origin;
   const canCamera = isSecureContext && location.protocol !== 'file:' && !!navigator.mediaDevices?.getUserMedia;
   let initialMessage = 'Empieza con el medio sumador: cambia A y B y compara la suma S1 con el acarreo S2.';
   try { const saved = localStorage.getItem(storeKey); if (saved) circuit = C.validate(JSON.parse(saved)); } catch { /* An invalid local file must not prevent startup. */ }
+  try {
+    const saved = JSON.parse(localStorage.getItem(classStoreKey));
+    if (saved) savedClass = { circuit: C.validate(saved.circuit), receivedAt: saved.receivedAt, stored: true };
+  } catch { /* A damaged or unavailable class archive must not affect the personal circuit. */ }
   const parameters = new URLSearchParams(location.search);
   const shared = parameters.get('circuit');
   if (shared && !parameters.has('lesson')) {
@@ -28,7 +35,8 @@
       const received = Lesson.decode(parameters.get('lesson'));
       classSession = { original: C.clone(circuit), undo: [], redo: [], following: true, received: C.clone(received), code: Lesson.fingerprint(received) };
       circuit = received;
-      initialMessage = 'Circuito del profesor recibido desde el QR. Activa la cámara y apunta a HIRO. Tu circuito personal se conserva.';
+      rememberClass(received);
+      initialMessage = 'Circuito del profesor recibido desde el QR. Usa Ver grande · sin HIRO para examinarlo sin cámara, o activa Cámara RA. Para recibir cambios necesitas el QR actualizado.';
     } catch { invalidLesson = true; initialMessage = 'El enlace de clase no es válido. No se ha cargado el circuito del profesor ni modificado tu circuito personal.'; }
   }
 
@@ -38,6 +46,19 @@
   }
   function send(data) { frame?.contentWindow?.postMessage({ app: 'g8-logic-lab', ...data }, origin); }
   function save() { if (classSession) return; try { localStorage.setItem(storeKey, JSON.stringify(circuit)); } catch { /* The editor also works with storage disabled. */ } }
+  function rememberClass(data) {
+    savedClass = { circuit: C.clone(data), receivedAt: new Date().toISOString() };
+    let stored = false;
+    try { localStorage.setItem(classStoreKey, JSON.stringify(savedClass)); stored = true; } catch { /* Offer a JSON download when storage is unavailable. */ }
+    savedClass.stored = stored;
+    return stored;
+  }
+  function classInfo() {
+    if (!classSession) return null;
+    let stored = false;
+    try { stored = Lesson.encode(C.validate(JSON.parse(localStorage.getItem(classStoreKey)).circuit)) === Lesson.encode(classSession.received); } catch {}
+    return { following: classSession.following, code: classSession.code, stored };
+  }
   function commit(next, text) {
     if (classSession?.following) { message('Estás viendo el circuito del profesor. Pulsa Explorar una copia para experimentar sin cambiar el original.'); return; }
     try {
@@ -127,19 +148,24 @@
     if (focusToggle) root.querySelector(`button[data-circuit-toggle="${focusToggle}"]`)?.focus({ preventScroll: true });
     if (window.scrollY !== scrollTop) window.scrollTo(0, scrollTop);
     send({ type: 'circuit-state', circuit });
-    window.dispatchEvent(new CustomEvent('logiclab:circuit-change', { detail: { circuit: C.clone(circuit), classroom: classSession ? { following: classSession.following, code: classSession.code } : null, receiveQR, mode } }));
+    window.dispatchEvent(new CustomEvent('logiclab:circuit-change', { detail: { circuit: C.clone(circuit), classroom: classInfo(), receiveQR, mode } }));
   }
 
   function receiveClass(data) {
     const received = C.validate(data);
     if (classSession && !classSession.following) return;
     const code = Lesson.fingerprint(received);
-    if (classSession?.following && Lesson.encode(classSession.received) === Lesson.encode(received)) return;
+    if (classSession?.following && Lesson.encode(classSession.received) === Lesson.encode(received)) {
+      message(`QR comprobado · ${code}. Ya tienes esta versión. Si el profesor cambió el circuito, enfoca el QR actualizado de Mostrar en clase / QR.`);
+      sceneStatus(`QR comprobado · Vista ${code}. HIRO coloca el modelo; el QR recibe los cambios.`);
+      return;
+    }
     if (!classSession) classSession = { original: C.clone(circuit), undo: C.clone(undo), redo: C.clone(redo), following: true };
     classSession.received = C.clone(received); classSession.code = code; classSession.following = true;
     circuit = received; undo = []; redo = []; pending = null;
+    rememberClass(received);
     render();
-    message(`Circuito del profesor recibido · ${code}. Enfoca HIRO para colocarlo. Vuelve a enfocar el QR si el profesor cambia el circuito.`);
+    message(`Circuito del profesor recibido · ${code}. Puedes verlo grande sin HIRO. Para recibir otro cambio, pulsa Actualizar desde QR y enfoca el QR del profesor.`);
     if (mode === 'ar') sceneStatus('Circuito del profesor cargado · Enfoca HIRO o mantén el marcador visible.');
     try { history.replaceState(null, '', Lesson.url(circuit, location.href)); } catch { /* A local context may restrict the address bar. */ }
   }
@@ -171,7 +197,40 @@
     if (classSession && !classSession.following) followClass();
     if (mode === 'ar' && frame) send({ type: 'scan-classroom', enabled: true });
     else { setMode('ar'); if (canCamera) startScene(); }
-    message('Enfoca el QR que muestra el profesor. Después apunta a HIRO para colocar ese mismo circuito en realidad aumentada.');
+    message('ACTUALIZAR: enfoca el QR del circuito en Mostrar en clase / QR, con todo su borde visible. HIRO por sí solo no recibe cambios. Compara el código de vista con el del profesor.');
+    sceneStatus('Enfoca el QR actualizado del profesor. Después puedes usar HIRO o Ver grande · sin HIRO.');
+    $('#circuit-viewport').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  function expandView(value) {
+    if (expanded === value) return;
+    expanded = value;
+    if (expanded) expandFocus = document.activeElement;
+    viewport.classList.toggle('expanded', expanded);
+    document.body.classList.toggle('circuit-expanded', expanded);
+    $('#circuit-expand').textContent = expanded ? 'Salir de pantalla completa' : 'Pantalla completa';
+    $('#circuit-expand').setAttribute('aria-pressed', String(expanded));
+    if (expanded) {
+      for (let node = viewport; node.parentElement; node = node.parentElement) {
+        [...node.parentElement.children].forEach(sibling => {
+          if (sibling !== node && sibling instanceof HTMLElement && !sibling.inert) { sibling.inert = true; expandInert.push(sibling); }
+        });
+      }
+      viewport.setAttribute('role', 'dialog'); viewport.setAttribute('aria-modal', 'true'); $('#circuit-expand').focus({ preventScroll: true });
+    } else {
+      expandInert.forEach(node => { node.inert = false; }); expandInert = [];
+      viewport.removeAttribute('role'); viewport.removeAttribute('aria-modal'); expandFocus?.focus({ preventScroll: true });
+    }
+  }
+  function viewLarge() {
+    setMode('3d'); expandView(true);
+    sceneStatus('Vista sin HIRO · Pellizca o usa + para ampliar. Usa Mover para recorrer el circuito.');
+  }
+  function openSavedClass() {
+    if (!savedClass) return;
+    if (classSession) classSession.following = true;
+    receiveClass(savedClass.circuit);
+    viewLarge();
   }
 
   function changeInput(id) {
@@ -194,15 +253,23 @@
   }
   function startScene() {
     stopScene(); $('#circuit-ar-intro').hidden = true; $('#circuit-scene-host').hidden = false;
-    frame = document.createElement('iframe'); frame.title = mode === 'ar' ? 'Circuito en realidad aumentada' : 'Circuito completo en 3D'; frame.allow = 'camera; fullscreen; xr-spatial-tracking'; frame.src = `scene.html?mode=${mode}`; $('#circuit-scene-host').append(frame);
+    frame = document.createElement('iframe'); frame.title = mode === 'ar' ? 'Circuito en realidad aumentada' : 'Circuito completo en 3D'; frame.allow = 'camera; fullscreen; xr-spatial-tracking'; frame.src = `scene.html?v=3.3.0&mode=${mode}`; $('#circuit-scene-host').append(frame);
     sceneStatus(mode === 'ar' ? 'Preparando cámara… Acepta el permiso de tu navegador.' : 'Preparando el circuito en 3D…');
     timer = setTimeout(() => { stopScene(); $('#circuit-ar-intro').hidden = mode !== 'ar'; sceneStatus('No se pudo iniciar el visor. Selecciona el modo para reintentar o sigue probando en Conexiones.', true); }, 30000);
   }
   function setMode(next) {
     if (!['simulator', '3d', 'ar'].includes(next)) return;
     stopScene(); mode = next;
+    if (classSession) {
+      try { const address = new URL(location.href); address.searchParams.set('mode', mode); history.replaceState(null, '', address.href); } catch {}
+    }
     root.querySelectorAll('[data-circuit-mode]').forEach(el => { el.classList.toggle('active', el.dataset.circuitMode === mode); el.setAttribute('aria-pressed', String(el.dataset.circuitMode === mode)); });
     $('#circuit-board').hidden = mode !== 'simulator'; $('#circuit-ar-intro').hidden = mode !== 'ar'; sceneStatus('');
+    $('#circuit-zoom-tools').hidden = mode === 'simulator';
+    $('#circuit-pan').hidden = mode !== '3d';
+    $('#circuit-pan').setAttribute('aria-pressed', 'false');
+    $('#circuit-freeze').hidden = mode !== 'ar';
+    $('#circuit-zoom-value').textContent = '100%';
     if (mode === '3d') startScene();
     if (mode === 'ar' && !canCamera) sceneStatus('Para la cámara abre la versión publicada con HTTPS. La vista Conexiones funciona también con archivos locales.', true);
   }
@@ -229,7 +296,7 @@
   });
   root.addEventListener('keydown', event => {
     if (event.target.tagName.toLowerCase() === 'g' && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
-    if (event.key === 'Escape') { pending = null; render(); message('Conexión cancelada.'); }
+    if (event.key === 'Escape' && !expanded) { pending = null; render(); message('Conexión cancelada.'); }
   });
   root.addEventListener('change', event => {
     if (!event.target.matches('[data-circuit-select]')) return;
@@ -263,6 +330,15 @@
     catch { message(`Copia este enlace: ${url.href}`); }
   });
   root.querySelectorAll('[data-circuit-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.circuitMode)));
+  $('#circuit-expand').addEventListener('click', () => expandView(!expanded));
+  $('#circuit-freeze').addEventListener('click', viewLarge);
+  $('#circuit-reset-view').addEventListener('click', () => send({ type: 'reset-view' }));
+  root.querySelectorAll('[data-circuit-zoom]').forEach(button => button.addEventListener('click', () => send({ type: 'zoom-view', factor: button.dataset.circuitZoom === 'in' ? 1.25 : .8 })));
+  $('#circuit-pan').addEventListener('click', () => {
+    const enabled = $('#circuit-pan').getAttribute('aria-pressed') !== 'true';
+    $('#circuit-pan').setAttribute('aria-pressed', String(enabled)); send({ type: 'pan-view', enabled });
+  });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && expanded) { event.preventDefault(); expandView(false); } });
   $('#circuit-start-camera').addEventListener('click', () => { if (canCamera) startScene(); else { message('Abre la guía para publicar el sitio con HTTPS y activar la cámara.', true); document.querySelector('.nav-item[data-view="phone"]').click(); } });
   window.addEventListener('message', event => {
     if (!frame || event.source !== frame.contentWindow || (location.protocol !== 'file:' && event.origin !== location.origin) || event.data?.app !== 'g8-logic-lab') return;
@@ -271,6 +347,7 @@
     if (data.type === 'marker-found') sceneStatus(classSession?.following ? `Marcador detectado · Circuito del profesor ${classSession.code}. Enfoca el QR para recibir cambios.` : 'Marcador detectado · Cambia las entradas para ver las señales del circuito completo.');
     if (data.type === 'marker-lost') sceneStatus('Buscando marcador HIRO · Mantén el borde completo dentro de la cámara.');
     if (data.type === 'toggle-input') changeInput(data.input);
+    if (data.type === 'view-state' && Number.isFinite(data.zoom)) $('#circuit-zoom-value').textContent = `${Math.round(data.zoom * 100)}%`;
     if (data.type === 'classroom-circuit' && receiveQR) {
       const received = Lesson.readURL(data.url, location.href);
       if (received) receiveClass(received.circuit);
@@ -278,7 +355,7 @@
     if (data.type === 'qr-unavailable') sceneStatus(data.message, true);
     if (data.type === 'error') { stopScene(); $('#circuit-ar-intro').hidden = mode !== 'ar'; sceneStatus(typeof data.message === 'string' ? data.message : 'No se pudo iniciar el visor.', true); }
   });
-  window.addEventListener('logiclab:view', event => { clearTimeout(classCameraTimer); if (event.detail !== 'circuit') stopScene(); else if (mode !== 'simulator') setMode(mode); });
+  window.addEventListener('logiclab:view', event => { clearTimeout(classCameraTimer); if (event.detail !== 'circuit') { expandView(false); stopScene(); } else if (mode !== 'simulator') setMode(mode); });
   window.addEventListener('logiclab:receive-class', event => {
     try {
       receiveQR = true; if (classSession) classSession.following = true;
@@ -292,7 +369,7 @@
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'ar' && frame) { stopScene(); $('#circuit-ar-intro').hidden = false; sceneStatus('Cámara en pausa. Actívala para volver a ver tu circuito.'); } });
   window.addEventListener('pagehide', stopScene);
-  window.LogicLabEditor = Object.freeze({ snapshot: () => C.clone(circuit), classroom: () => classSession ? { following: classSession.following, code: classSession.code } : null, changeInput, exploreClass, followClass, restorePersonal, scanClass });
+  window.LogicLabEditor = Object.freeze({ snapshot: () => C.clone(circuit), classroom: classInfo, savedClass: () => savedClass?.stored ? { code: Lesson.fingerprint(savedClass.circuit), gates: savedClass.circuit.gates.length } : null, changeInput, exploreClass, followClass, restorePersonal, scanClass, viewLarge, openSavedClass });
   render(); save(); message(initialMessage, invalidLesson);
-  if (classSession && !root.hidden) setMode('ar');
+  if (classSession && !root.hidden) setMode(['3d', 'simulator'].includes(parameters.get('mode')) ? parameters.get('mode') : 'ar');
 })();

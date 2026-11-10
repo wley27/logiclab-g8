@@ -14,6 +14,24 @@ body.class-presenting { overflow:hidden; }
 .class-received p { font-size:12px; line-height:1.8; color:#5c704c; margin:0; max-width:660px; }
 .class-received-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
 .class-received-actions .button { white-space:nowrap; }
+.class-received .class-storage-note { font-size:10px; margin-top:8px; }
+.class-saved { background:#f0f1e5; border-color:#cbd4bb; }
+.class-saved>.button { flex-shrink:0; }
+.circuit-viewport { min-width:0; background:#0b1e18; }
+.circuit-view-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; background:#edf1df; border-bottom:1px solid #ccd7b9; }
+.circuit-view-tools .button { min-height:40px; font-size:10px; }
+.circuit-zoom-tools { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-right:auto; }
+.circuit-zoom-tools output { font:11px var(--mono); min-width:45px; text-align:center; color:#365e36; }
+.circuit-zoom-tools [data-circuit-zoom] { font-size:20px; min-width:40px; padding:5px; }
+#circuit-pan[aria-pressed="true"] { background:#dce9b5; border-color:#8da862; }
+body.circuit-expanded { overflow:hidden; }
+.circuit-viewport.expanded { position:fixed; inset:0; height:100vh; height:100dvh; z-index:120; display:flex; flex-direction:column; padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.circuit-viewport.expanded>.circuit-scene-host,.circuit-viewport.expanded>.circuit-board,.circuit-viewport.expanded>.circuit-ar-intro { flex:1; min-height:0; height:auto; max-height:none; }
+.circuit-viewport.expanded>.circuit-board { overflow:auto; }
+.circuit-viewport.expanded>.circuit-ar-intro { justify-content:center; }
+.circuit-viewport.expanded>.circuit-view-tools,.circuit-viewport.expanded>.mode-bar,.circuit-viewport.expanded>.scene-status { flex-shrink:0; }
+.circuit-viewport.expanded>.scene-status { max-height:90px; overflow:auto; }
+.circuit-viewport.expanded .circuit-scroll-hint { display:none; }
 .class-following #circuit-board [data-circuit-toggle],.class-following #circuit-board [data-circuit-source],.class-following #circuit-board [data-circuit-target] { cursor:default; }
 .class-following .circuit-inputs button:disabled { opacity:1; cursor:default; }
 .class-following .circuit-inputs .circuit-remove { visibility:hidden; }

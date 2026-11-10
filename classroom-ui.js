@@ -54,13 +54,20 @@
   }
   function renderReceived() {
     const state = Editor.classroom();
+    const saved = Editor.savedClass();
     $('#class-received').hidden = !state;
+    $('#circuit-refresh-class').hidden = !state;
+    $('#class-saved').hidden = !!state || !saved;
+    if (saved) $('#class-saved-code').textContent = `Vista ${saved.code} · ${saved.gates} compuertas`;
     if (!state) return;
     $('#class-received-title').textContent = state.following ? 'CIRCUITO DEL PROFESOR / RECIBIDO' : 'COPIA TEMPORAL / EXPLORACIÓN';
     $('#class-received-code').textContent = `Vista ${state.code}`;
     $('#class-received-description').textContent = state.following
-      ? 'Ves las compuertas y los valores recibidos del QR. Vuelve a enfocarlo para recibir cambios del profesor. Tu circuito personal se conserva.'
+      ? 'Para recibir cambios pulsa Actualizar desde QR y enfoca el QR actualizado del profesor. Enfocar solamente HIRO no actualiza el circuito.'
       : 'Puedes experimentar con esta copia. La recepción del QR está en pausa. Guarda un archivo si quieres conservarla; tu circuito personal no cambia.';
+    $('#class-storage-note').textContent = state.stored
+      ? 'La última versión recibida está guardada en este navegador. Puedes abrirla después; tu circuito personal se conserva.'
+      : 'El guardado local no está disponible. Descarga el circuito para conservarlo.';
     $('#class-explore').hidden = !state.following;
     $('#class-follow').hidden = state.following;
   }
@@ -83,6 +90,9 @@
   $('#class-explore').addEventListener('click', () => Editor.exploreClass());
   $('#class-follow').addEventListener('click', () => Editor.followClass());
   $('#class-restore').addEventListener('click', () => Editor.restorePersonal());
+  $('#class-view-large').addEventListener('click', () => Editor.viewLarge());
+  $('#class-open-saved').addEventListener('click', () => Editor.openSavedClass());
+  $('#class-download').addEventListener('click', () => $('#circuit-export').click());
   $('#class-copy-link').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(currentLink); $('#class-presenter-note').textContent = 'Enlace del circuito copiado. Abre exactamente este enlace en el teléfono del estudiante.'; }
     catch { $('#class-presenter-note').textContent = `Copia este enlace para estudiantes: ${currentLink}`; }

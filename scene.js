@@ -7,9 +7,22 @@
   let stopped = false;
   let failed = false;
   let fitCamera = () => {};
+  let zoom = 1, panMode = false;
   let scanTimer = null, scanEnabled = false, lastClassCode = '', nativeDetector = null;
   const origin = location.protocol === 'file:' ? '*' : location.origin;
   const send = (type, extra = {}) => parent.postMessage({ app: 'g8-logic-lab', type, ...extra }, origin);
+  function setZoom(value) {
+    if (!holder || stopped || !Number.isFinite(value)) return;
+    zoom = Math.max(.35, Math.min(mode === 'ar' ? 4 : 6, value));
+    holder.object3D.scale.setScalar((mode === 'ar' ? .4 : 1) * zoom);
+    send('view-state', { zoom });
+  }
+  function resetView() {
+    if (!holder || stopped) return;
+    holder.object3D.rotation.set(0, mode === '3d' ? -.15 : 0, 0);
+    holder.object3D.position.set(0, mode === 'ar' ? .02 : 0, 0);
+    setZoom(1); fitCamera();
+  }
 
   function cameraFailure(error) {
     const messages = {
@@ -63,19 +76,28 @@
       try {
         const video = document.querySelector('video');
         if (!scanEnabled || document.hidden || !video || video.readyState < 2 || !video.videoWidth || !context) return;
+        const ratio = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+        const width = Math.round(video.videoWidth * ratio), height = Math.round(video.videoHeight * ratio);
+        if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+        context.drawImage(video, 0, 0, width, height);
         let candidates = [];
         if (nativeDetector) {
-          try { candidates = (await nativeDetector.detect(video)).map(item => item.rawValue); }
+          let timeout;
+          try {
+            const found = await Promise.race([nativeDetector.detect(canvas), new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('QR timeout')), 900); })]);
+            candidates = found.map(item => item.rawValue);
+          }
           catch { nativeDetector = null; }
+          finally { clearTimeout(timeout); }
         }
-        if (!candidates.length && window.jsQR) {
-          const ratio = Math.min(1, 1024 / Math.max(video.videoWidth, video.videoHeight));
-          const width = Math.round(video.videoWidth * ratio), height = Math.round(video.videoHeight * ratio);
-          if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-          context.drawImage(video, 0, 0, width, height);
+        const newClass = url => {
+          const received = LogicClassroom.readURL(url, location.href);
+          return received && LogicClassroom.encode(received.circuit) !== lastClassCode;
+        };
+        if (!candidates.some(newClass) && window.jsQR) {
           const pixels = context.getImageData(0, 0, width, height);
           const found = jsQR(pixels.data, width, height, { inversionAttempts: 'dontInvert' });
-          if (found) candidates.push(found.data);
+          if (found) candidates.unshift(found.data);
         }
         if (stopped || !scanEnabled) return;
         for (const url of candidates) {
@@ -95,7 +117,9 @@
     const data = event.data;
     if (data.type === 'stop') { stop(); return; }
     if (data.type === 'scan-classroom') { scanEnabled = data.enabled === true; if (scanEnabled) lastClassCode = ''; }
-    if (data.type === 'reset-view' && mode === '3d' && holder) { holder.object3D.rotation.set(0, -.15, 0); holder.object3D.scale.setScalar(1); }
+    if (data.type === 'reset-view') resetView();
+    if (data.type === 'zoom-view' && [1.25, .8].includes(data.factor)) setZoom(zoom * data.factor);
+    if (data.type === 'pan-view') panMode = mode === '3d' && data.enabled === true;
     if (data.type === 'state' && Object.hasOwn(G8Logic.gates, data.gate) && [0, 1].includes(data.A) && [0, 1].includes(data.B)) {
       state = { gate: data.gate, A: data.A, B: data.B }; updateModel();
     }
@@ -138,12 +162,18 @@
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const dx = event.clientX - lastX, dy = event.clientY - lastY;
       if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
-      if (mode === '3d' && !stopped) {
+      if (!stopped) {
         if (pointers.size === 2) {
           const next = distance();
-          if (pinchDistance > 0) holder.object3D.scale.setScalar(Math.max(.6, Math.min(1.65, holder.object3D.scale.x * next / pinchDistance)));
+          if (pinchDistance > 0) setZoom(zoom * next / pinchDistance);
           pinchDistance = next;
-        } else { holder.object3D.rotation.y += dx * .009; holder.object3D.rotation.x = Math.max(-.45, Math.min(.65, holder.object3D.rotation.x + dy * .005)); }
+        } else if (mode === '3d' && panMode) {
+          const distance = scene.camera.getWorldPosition(new AFRAME.THREE.Vector3()).length();
+          const unit = 2 * distance * Math.tan(44 * Math.PI / 360) / Math.max(canvas.clientHeight, 1);
+          holder.object3D.position.x += dx * unit;
+          holder.object3D.position.y -= dy * unit * Math.cos(40 * Math.PI / 180);
+          holder.object3D.position.z += dy * unit * Math.sin(40 * Math.PI / 180);
+        } else if (mode === '3d') { holder.object3D.rotation.y += dx * .009; holder.object3D.rotation.x = Math.max(-.45, Math.min(.65, holder.object3D.rotation.x + dy * .005)); }
       }
       lastX = event.clientX; lastY = event.clientY;
     });
@@ -159,9 +189,9 @@
     });
     canvas.addEventListener('pointercancel', event => pointers.delete(event.pointerId));
     canvas.addEventListener('wheel', event => {
-      if (mode !== '3d' || stopped) return;
+      if (stopped) return;
       event.preventDefault();
-      holder.object3D.scale.setScalar(Math.max(.6, Math.min(1.65, holder.object3D.scale.x * (event.deltaY > 0 ? .93 : 1.07))));
+      setZoom(zoom * (event.deltaY > 0 ? .93 : 1.07));
     }, { passive: false });
   }
 

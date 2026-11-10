@@ -150,7 +150,7 @@
     frame = document.createElement('iframe');
     frame.title = mode === 'ar' ? 'Compuerta en realidad aumentada' : 'Modelo tridimensional de la compuerta';
     frame.allow = 'camera; fullscreen; xr-spatial-tracking';
-    frame.src = `scene.html?mode=${mode}`;
+    frame.src = `scene.html?v=3.3.0&mode=${mode}`;
     $('#scene-host').append(frame);
     status(mode === 'ar' ? 'Preparando la cámara… Acepta el permiso de tu navegador.' : 'Preparando el modelo 3D…');
     frameTimer = setTimeout(() => {
