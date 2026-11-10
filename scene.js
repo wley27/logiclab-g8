@@ -7,6 +7,7 @@
   let stopped = false;
   let failed = false;
   let fitCamera = () => {};
+  let scanTimer = null, scanEnabled = false, lastClassCode = '', nativeDetector = null;
   const origin = location.protocol === 'file:' ? '*' : location.origin;
   const send = (type, extra = {}) => parent.postMessage({ app: 'g8-logic-lab', type, ...extra }, origin);
 
@@ -22,6 +23,7 @@
 
   function stop() {
     stopped = true;
+    clearTimeout(scanTimer);
     document.querySelectorAll('video').forEach(video => { video.srcObject?.getTracks().forEach(track => track.stop()); video.srcObject = null; });
     scene?.pause();
     window.G8Model?.dispose(model);
@@ -51,10 +53,48 @@
     holder.setObject3D('gate', model);
     fitCamera();
   }
+
+  function startClassScanner() {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    try { if (window.BarcodeDetector) nativeDetector = new BarcodeDetector({ formats: ['qr_code'] }); } catch { nativeDetector = null; }
+    async function scan() {
+      if (stopped) return;
+      try {
+        const video = document.querySelector('video');
+        if (!scanEnabled || document.hidden || !video || video.readyState < 2 || !video.videoWidth || !context) return;
+        let candidates = [];
+        if (nativeDetector) {
+          try { candidates = (await nativeDetector.detect(video)).map(item => item.rawValue); }
+          catch { nativeDetector = null; }
+        }
+        if (!candidates.length && window.jsQR) {
+          const ratio = Math.min(1, 1024 / Math.max(video.videoWidth, video.videoHeight));
+          const width = Math.round(video.videoWidth * ratio), height = Math.round(video.videoHeight * ratio);
+          if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+          context.drawImage(video, 0, 0, width, height);
+          const pixels = context.getImageData(0, 0, width, height);
+          const found = jsQR(pixels.data, width, height, { inversionAttempts: 'dontInvert' });
+          if (found) candidates.push(found.data);
+        }
+        if (stopped || !scanEnabled) return;
+        for (const url of candidates) {
+          const received = LogicClassroom.readURL(url, location.href);
+          if (!received) continue;
+          const code = LogicClassroom.encode(received.circuit);
+          if (code !== lastClassCode) { lastClassCode = code; send('classroom-circuit', { url }); }
+          break;
+        }
+      } catch { /* A frame can be unavailable while the phone changes orientation. */ }
+      finally { if (!stopped) scanTimer = setTimeout(scan, 700); }
+    }
+    scanTimer = setTimeout(scan, 350);
+  }
   window.addEventListener('message', event => {
     if (event.source !== parent || (location.protocol !== 'file:' && event.origin !== location.origin) || event.data?.app !== 'g8-logic-lab') return;
     const data = event.data;
     if (data.type === 'stop') { stop(); return; }
+    if (data.type === 'scan-classroom') { scanEnabled = data.enabled === true; if (scanEnabled) lastClassCode = ''; }
     if (data.type === 'reset-view' && mode === '3d' && holder) { holder.object3D.rotation.set(0, -.15, 0); holder.object3D.scale.setScalar(1); }
     if (data.type === 'state' && Object.hasOwn(G8Logic.gates, data.gate) && [0, 1].includes(data.A) && [0, 1].includes(data.B)) {
       state = { gate: data.gate, A: data.A, B: data.B }; updateModel();
@@ -141,6 +181,8 @@
           } catch (error) { if (!stopped) cameraFailure(error); throw error; }
         };
         await loadScript('vendor/aframe-ar-3.4.7.js');
+        try { await loadScript('vendor/jsqr-1.4.0.js'); }
+        catch { send('qr-unavailable', { message: 'El lector de clase no está disponible. Abre el enlace o QR del profesor con la cámara del teléfono y vuelve a activar RA.' }); }
       }
       if (stopped) return;
       const common = 'embedded xr-mode-ui="enabled: false" vr-mode-ui="enabled: false" loading-screen="enabled: false" device-orientation-permission-ui="enabled: false" renderer="antialias: true; alpha: true; precision: mediump; colorManagement: true"';
@@ -161,6 +203,7 @@
       };
       if (scene.hasLoaded) ready(); else scene.addEventListener('loaded', ready, { once: true });
       if (mode === 'ar') {
+        startClassScanner();
         window.addEventListener('camera-init', event => {
           const source = event.detail?.stream;
           if (stopped) { source?.getTracks().forEach(track => track.stop()); return; }

@@ -108,6 +108,7 @@
     postToScene({ type: 'state', gate: state.gate, A: state.A, B: state.B });
     if (focusInput) $(`[data-input="${focusInput}"]`)?.focus({ preventScroll: true });
     if (focusCombo) $(`[data-combo="${focusCombo}"]`)?.focus({ preventScroll: true });
+    window.dispatchEvent(new CustomEvent('logiclab:gate-change', { detail: { gate: state.gate, A: state.A, B: state.B } }));
   }
 
   function stopAuto() {
@@ -306,11 +307,20 @@
     if (data.type === 'ready') {
       clearTimeout(frameTimer);
       postToScene({ type: 'state', gate: state.gate, A: state.A, B: state.B });
+      postToScene({ type: 'scan-classroom', enabled: true });
       status(state.mode === 'ar' ? 'Cámara activa · Buscando marcador HIRO. Mantén visible el borde completo.' : 'Modelo 3D listo · Arrastra para girar. Usa la rueda o pellizca para acercarte.');
     }
     if (data.type === 'marker-found') status('Marcador detectado · Cambia A y B para seguir las señales en tu circuito.');
     if (data.type === 'marker-lost') status('Buscando marcador HIRO · Apunta de nuevo al marcador completo.');
     if (data.type === 'toggle-input') changeInput(data.input);
+    if (data.type === 'classroom-circuit') {
+      const received = LogicClassroom.readURL(data.url, location.href);
+      if (received) {
+        showView('circuit');
+        window.dispatchEvent(new CustomEvent('logiclab:receive-class', { detail: { circuit: received.circuit, openCamera: true } }));
+      }
+    }
+    if (data.type === 'qr-unavailable') status(data.message, true);
     if (data.type === 'error') { destroyScene(); if (state.mode === 'ar') $('#ar-intro').hidden = false; status(typeof data.message === 'string' ? data.message : 'No se pudo iniciar el visor.', true); }
   });
   document.addEventListener('visibilitychange', () => {
@@ -318,8 +328,9 @@
   });
   window.addEventListener('pagehide', destroyScene);
   window.addEventListener('hashchange', () => showView(location.hash.slice(1), false));
+  window.LogicLabLaboratory = Object.freeze({ snapshot: () => ({ gate: state.gate, A: state.A, B: state.B }), changeInput });
   renderLab();
-  showView(location.hash.slice(1) || 'lab', false);
+  showView(location.hash.slice(1) || (new URLSearchParams(location.search).has('lesson') ? 'circuit' : 'lab'), false);
   const requestedMode = new URLSearchParams(location.search).get('mode');
   if (state.view === 'lab' && ['3d', 'ar'].includes(requestedMode)) setMode(requestedMode, true);
 })();

@@ -8,6 +8,7 @@ Los archivos se guardan localmente, sin modificar las distribuciones de los prov
 | aframe-ar-3.4.7.js | https://github.com/AR-js-org/AR.js/tree/3.4.7 | AR.js: MIT, ver LICENSE-arjs.txt. Incluye ARToolKit5, LGPLv3 con permiso adicional. |
 | camera_para.dat, hiro.patt y ../assets/hiro.png | https://github.com/AR-js-org/AR.js/tree/3.4.7/data | Recursos del proyecto AR.js. |
 | qrcode.min.js | qrcodejs 1.0.0: https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js | MIT; autores David Shim y Kazuhiko Arase; avisos en la distribución y LICENSE-qrcode.txt. |
+| jsqr-1.4.0.js | jsQR 1.4.0: https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js | Apache-2.0; distribución original, ver LICENSE-jsqr.txt. |
 
 Fuentes y avisos de las dependencias:
 
@@ -17,6 +18,7 @@ Fuentes y avisos de las dependencias:
 - Código fuente de ARToolKit5 y sus permisos: https://github.com/AR-js-org/artoolkit5-js
 - Licencia de ARToolKit5: https://github.com/AR-js-org/artoolkit5-js/blob/master/LICENSE
 - QRCode.js: https://github.com/davidshimjs/qrcodejs
+- jsQR: https://github.com/cozmo/jsQR
 
 Conserva esta carpeta y sus avisos cuando redistribuyas el sitio. No se han modificado los motores compilados de terceros.
 
